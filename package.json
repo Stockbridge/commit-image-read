@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx parse_commits.ts"
+    "start": "tsx parse_commits.ts",
+    "detect-grids": "tsx detect_grids.ts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.44"
