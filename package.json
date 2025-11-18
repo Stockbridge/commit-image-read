@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "start": "tsx parse_commits.ts",
-    "detect-grids": "tsx detect_grids.ts"
+    "test": "echo \"No tests specified\""
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.44"

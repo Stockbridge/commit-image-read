@@ -13,27 +13,18 @@ This project analyzes GitHub commit history images and extracts commit data into
 │   ├── 23_24_CommitHistory.png  
 │   ├── 24_25_CommitHistory.png
 │   └── *_CommitOnly.png        # Filtered versions showing only commits
+├── scripts/                    # Implementation scripts (active development)
 ├── prompts/                    # Development session logs
-├── detect_grids.ts            # Grid detection and box finding logic
-├── parse_commits.ts           # Main commit parsing and JSON generation
 ├── package.json               # Node.js project config
 └── README.md                  # Basic project description
 ```
 
 ## Key Files
 
-### parse_commits.ts
-- Main entry point (`npm start`)
-- Processes GitHub commit history images
-- Extracts commit levels (0-4 intensity) from color values
-- Outputs structured JSON: `{year: {week: {day: level}}}`
+### Scripts Directory
+- Contains the active implementation files
+- Grid detection and commit parsing logic
 - Uses @napi-rs/canvas for image processing
-
-### detect_grids.ts  
-- Grid detection utility (`npm run detect-grids`)
-- Finds rectangular boxes/cells in commit grid images
-- Identifies background vs commit colors
-- Flood-fill algorithm for box detection
 
 ### Images Directory
 Contains GitHub contribution graph screenshots:
@@ -66,8 +57,9 @@ interface CommitData {
 
 ## Usage
 ```bash
-npm start          # Parse commit images to JSON
-npm run detect-grids  # Analyze grid structure
+# Run scripts from the scripts/ directory
+cd scripts/
+tsx <script-name>.ts
 ```
 
 ## Dependencies
@@ -75,8 +67,38 @@ npm run detect-grids  # Analyze grid structure
 - tsx: TypeScript execution
 - @types/node: Node.js type definitions
 
+## Technical Implementation
+
+### Color Detection
+Amazon uses blue color scheme (not GitHub's green):
+- Level 0: [238, 238, 238] - No commits (gray)
+- Level 1: [164, 210, 238] - Light blue
+- Level 2: [103, 200, 255] - Blue  
+- Level 3: [89, 150, 184] - Slate blue
+- Level 4: [0, 64, 134] - Dark blue
+
+### Grid Detection Algorithm
+- Scans for non-background pixels in 2px increments
+- Identifies squares 8-15px in size
+- Calculates spacing between squares (typically 2px gap)
+- Returns multiple grids for multi-year images
+- Uses flood-fill approach for boundary detection
+
+### Current Processing Logic
+- `parse_commits.ts`: Hardcoded for 2022-2023 timeframe (weeks 44-52 + 1-44)
+- `detect_grids.ts`: More flexible grid detection with Amazon color scheme
+- Both use 11px squares with 2px spacing as default
+- Sample from center of each square to avoid border artifacts
+
+### Known Issues
+- Hardcoded year ranges in main parser
+- Grid detection sometimes finds false positives
+- Color classification needs tuning for edge cases
+- No automatic year/date detection from images
+
 ## Development Notes
-- Project tracks Amazon commit history analysis
+- Project tracks Amazon commit history analysis (not GitHub)
 - Uses computer vision to extract data from screenshots
-- Converts visual commit patterns to structured data
-- Supports multi-year analysis across different time periods
+- Converts visual commit patterns to structured JSON
+- Supports multi-year analysis across 2022-2025 timeframe
+- Canvas-based pixel sampling with color distance algorithms
