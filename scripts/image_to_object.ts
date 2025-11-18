@@ -1,6 +1,6 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { groupPixels } from './group_pixels.js';
-import { organizeByColumns, groupByX } from './organize_columns.js';
+import { fuzzyGroupColumns } from './organize_columns.js';
 
 interface ImageObject {
   [x: number]: {
@@ -59,8 +59,8 @@ if (process.argv[2]) {
     const grouped = groupPixels(imageObj);
     console.log(`Found ${Object.keys(grouped).length} regions of 4x4+ pixels`);
     
-    const xGroups = groupByX(grouped);
-    console.log(`Organized into ${Object.keys(xGroups).length} x-groups`);
+    const fuzzyColumns = fuzzyGroupColumns(grouped);
+    console.log(`Organized into ${Object.keys(fuzzyColumns).length} valid columns (7+ regions each)`);
     
     // Show level distribution
     const levelCounts = new Map<number, number>();
@@ -73,10 +73,10 @@ if (process.argv[2]) {
       console.log(`  Level ${level}: ${count} regions`);
     });
     
-    // Show x-group details
-    console.log('\nX-group details:');
-    Object.entries(xGroups).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([x, regions]) => {
-      console.log(`X ${x}: ${regions.length} regions`);
+    // Show fuzzy column details
+    console.log('\nValid columns (7+ regions):');
+    Object.entries(fuzzyColumns).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([x, regions]) => {
+      console.log(`Column ${x}: ${regions.length} regions`);
       regions.forEach(({coord, level}) => {
         console.log(`  ${coord}: Level ${level}`);
       });

@@ -39,7 +39,7 @@ const COLOR_TO_LEVEL = new Map([
 ]);
 
 function getCommitLevel(color: string): number | null {
-  return COLOR_TO_LEVEL.get(color) || null;
+  return COLOR_TO_LEVEL.has(color) ? COLOR_TO_LEVEL.get(color)! : null;
 }
 
 export function groupPixels(imageObj: ImageObject): GroupedPixels {
