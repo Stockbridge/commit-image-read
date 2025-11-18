@@ -8,6 +8,96 @@ interface ImageObject {
   };
 }
 
+interface CommitData {
+  [year: string]: {
+    [week: string]: {
+      su: number;
+      m: number;
+      t: number;
+      w: number;
+      th: number;
+      f: number;
+      s: number;
+    };
+  };
+}
+
+function columnsToCommitData(columns: any, years: number[]): CommitData {
+  const result: CommitData = {};
+  
+  // Group columns by Y coordinate ranges to separate grids
+  const columnsByY = Object.entries(columns).map(([x, regions]: [string, any]) => ({
+    x: parseInt(x),
+    regions,
+    avgY: regions.reduce((sum: number, r: any) => sum + parseInt(r.coord.split(',')[1]), 0) / regions.length
+  })).sort((a, b) => a.avgY - b.avgY);
+  
+  // Split into grids based on Y gaps
+  const grids: any[][] = [];
+  let currentGrid: any[] = [];
+  let lastY = -1;
+  
+  for (const col of columnsByY) {
+    if (lastY !== -1 && Math.abs(col.avgY - lastY) > 50) {
+      if (currentGrid.length > 0) grids.push(currentGrid);
+      currentGrid = [];
+    }
+    currentGrid.push(col);
+    lastY = col.avgY;
+  }
+  if (currentGrid.length > 0) grids.push(currentGrid);
+  
+  // Process each grid as a year
+  grids.forEach((grid, gridIndex) => {
+    if (gridIndex >= years.length) return;
+    
+    const year = years[gridIndex];
+    result[year] = {};
+    
+    // Sort columns by X coordinate and limit to 52
+    const sortedCols = grid.sort((a, b) => a.x - b.x).slice(0, 52);
+    
+    // Detect if this grid should use reverse numbering (short grid at far right)
+    const isShortGrid = sortedCols.length <= 10;
+    const avgX = sortedCols.reduce((sum, col) => sum + col.x, 0) / sortedCols.length;
+    const isRightSide = avgX > 400; // Adjust threshold as needed
+    
+    const useReverseNumbering = isShortGrid && isRightSide;
+    const maxWeeks = useReverseNumbering ? 9 : 52;
+    const startWeek = useReverseNumbering ? 44 : 1;
+    
+    sortedCols.slice(0, maxWeeks).forEach((col, weekIndex) => {
+      const week = useReverseNumbering ? startWeek + weekIndex : weekIndex + 1;
+      const weekData = { su: 0, m: 0, t: 0, w: 0, th: 0, f: 0, s: 0 };
+      const dayKeys = ['su', 'm', 't', 'w', 'th', 'f', 's'];
+      
+      // Sort regions by Y coordinate (days of week)
+      const sortedRegions = col.regions.sort((a: any, b: any) => {
+        const yA = parseInt(a.coord.split(',')[1]);
+        const yB = parseInt(b.coord.split(',')[1]);
+        return yA - yB;
+      }).slice(0, 7);
+      
+      sortedRegions.forEach((region: any, dayIndex: number) => {
+        if (dayIndex < 7) {
+          weekData[dayKeys[dayIndex] as keyof typeof weekData] = region.level;
+        }
+      });
+      
+      result[year][week] = weekData;
+    });
+  });
+  
+  return result;
+}
+
+export async function parseCommitImage(imagePath: string, years: number[]): Promise<CommitData> {
+  const imageObj = await imageToObject(imagePath);
+  const grouped = groupPixels(imageObj);
+  const columns = fuzzyGroupColumns(grouped);
+  return columnsToCommitData(columns, years);
+}
+
 export async function imageToObject(imagePath: string): Promise<ImageObject> {
   const image = await loadImage(imagePath);
   const canvas = createCanvas(image.width, image.height);
@@ -34,52 +124,11 @@ export async function imageToObject(imagePath: string): Promise<ImageObject> {
 // CLI execution
 if (process.argv[2]) {
   const imagePath = process.argv[2];
-  imageToObject(imagePath).then(imageObj => {
-    const width = Object.keys(imageObj).length;
-    const height = Object.keys(imageObj[0]).length;
-    console.log(`Processed image: ${width}x${height} pixels`);
-    
-    // Analyze unique colors
-    const colorCounts = new Map<string, number>();
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        const color = imageObj[x][y];
-        colorCounts.set(color, (colorCounts.get(color) || 0) + 1);
-      }
-    }
-    
-    console.log('Top 10 colors in image:');
-    Array.from(colorCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .forEach(([color, count]) => {
-        console.log(`  ${color}: ${count} pixels`);
-      });
-    
-    const grouped = groupPixels(imageObj);
-    console.log(`Found ${Object.keys(grouped).length} regions of 4x4+ pixels`);
-    
-    const fuzzyColumns = fuzzyGroupColumns(grouped);
-    console.log(`Organized into ${Object.keys(fuzzyColumns).length} valid columns (7+ regions each)`);
-    
-    // Show level distribution
-    const levelCounts = new Map<number, number>();
-    Object.values(grouped).forEach(level => {
-      levelCounts.set(level, (levelCounts.get(level) || 0) + 1);
-    });
-    
-    console.log('Commit level distribution:');
-    Array.from(levelCounts.entries()).sort().forEach(([level, count]) => {
-      console.log(`  Level ${level}: ${count} regions`);
-    });
-    
-    // Show fuzzy column details
-    console.log('\nValid columns (7+ regions):');
-    Object.entries(fuzzyColumns).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([x, regions]) => {
-      console.log(`Column ${x}: ${regions.length} regions`);
-      regions.forEach(({coord, level}) => {
-        console.log(`  ${coord}: Level ${level}`);
-      });
-    });
+  const years = process.argv[3] ? process.argv[3].split(',').map(Number) : [2022, 2023];
+  
+  // Test the new parseCommitImage function
+  parseCommitImage(imagePath, years).then(commitData => {
+    console.log('Parsed commit data:');
+    console.log(JSON.stringify(commitData, null, 2));
   }).catch(console.error);
 }
