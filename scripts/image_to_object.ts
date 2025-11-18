@@ -1,6 +1,6 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { groupPixels } from './group_pixels.js';
-import { organizeByColumns } from './organize_columns.js';
+import { organizeByColumns, groupByX } from './organize_columns.js';
 
 interface ImageObject {
   [x: number]: {
@@ -59,8 +59,8 @@ if (process.argv[2]) {
     const grouped = groupPixels(imageObj);
     console.log(`Found ${Object.keys(grouped).length} regions of 4x4+ pixels`);
     
-    const columns = organizeByColumns(grouped);
-    console.log(`Organized into ${Object.keys(columns).length} columns`);
+    const xGroups = groupByX(grouped);
+    console.log(`Organized into ${Object.keys(xGroups).length} x-groups`);
     
     // Show level distribution
     const levelCounts = new Map<number, number>();
@@ -71,6 +71,15 @@ if (process.argv[2]) {
     console.log('Commit level distribution:');
     Array.from(levelCounts.entries()).sort().forEach(([level, count]) => {
       console.log(`  Level ${level}: ${count} regions`);
+    });
+    
+    // Show x-group details
+    console.log('\nX-group details:');
+    Object.entries(xGroups).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([x, regions]) => {
+      console.log(`X ${x}: ${regions.length} regions`);
+      regions.forEach(({coord, level}) => {
+        console.log(`  ${coord}: Level ${level}`);
+      });
     });
   }).catch(console.error);
 }
